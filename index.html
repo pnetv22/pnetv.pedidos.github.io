@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Links HLS/M3U8</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Gerador de Links HLS/M3U8</h1>
+        <form id="iptvForm">
+            <label for="youtubeId">Insira o Channel ID ou Video ID:</label><br>
+            <input type="text" id="youtubeId" placeholder="Ex: UCt4t-jeY85JegMlZ-E5UWtA" required><br><br>
+            <button type="button" onclick="generateChannelLink()">Gerar Link do Canal</button>
+            <button type="button" onclick="generateVideoLink()">Gerar Link do Vídeo</button>
+        </form>
+        <div id="output"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
