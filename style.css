@@ -1,45 +1,42 @@
+/* style.css */
+* {
+    margin: 0;
+    padding: 0;
+    image-rendering: pixelated;
+}
+
 body {
-    font-family: Arial, sans-serif;
-    text-align: center;
-    background-color: #f7f9fc;
-    color: #333;
+    background: #000;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
 }
 
-.container {
-    margin-top: 50px;
-    padding: 20px;
-    border: 2px solid #ccc;
-    border-radius: 10px;
-    background-color: white;
-    width: 80%;
-    max-width: 400px;
-    margin-left: auto;
-    margin-right: auto;
+#game {
+    position: relative;
 }
 
-input {
-    width: 90%;
-    padding: 10px;
-    margin-bottom: 10px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
+.health-bar {
+    position: absolute;
+    top: 20px;
+    width: 300px;
+    height: 20px;
+    border: 2px solid #fff;
+    background: #333;
 }
 
-button {
-    padding: 10px 20px;
-    margin: 5px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
+#p1-health {
+    left: 20px;
+    background: linear-gradient(to right, #ff0000, #990000);
 }
 
-button:hover {
-    background-color: #0056b3;
+#p2-health {
+    right: 20px;
+    background: linear-gradient(to left, #ff0000, #990000);
 }
 
-#output {
-    margin-top: 20px;
-    font-weight: bold;
+canvas {
+    border: 2px solid #333;
 }
