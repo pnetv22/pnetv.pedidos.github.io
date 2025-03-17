@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Player Xtream</title>
+    <title>Web Player Premium</title>
     <style>
         :root {
             --primary: #2196F3;
@@ -125,14 +125,14 @@
 </head>
 <body>
     <div class="login-container">
-        <h2>Login do Assinante</h2>
+        <h2>Acesso do Assinante</h2>
         <div class="input-group">
-            <input type="text" id="username" placeholder="Usuário">
+            <input type="text" id="username" placeholder="Nome de usuário">
         </div>
         <div class="input-group">
             <input type="password" id="password" placeholder="Senha">
         </div>
-        <button onclick="login()">Entrar</button>
+        <button onclick="login()">Acessar</button>
         <div class="loader" id="loginLoader"></div>
     </div>
 
@@ -157,7 +157,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script>
-        const SERVER_DNS = 'radiopvt.shop:80'; // DNS fixo embutido
+        // Configurações do servidor (ocultas do usuário)
+        const SERVER_DNS = 'radiopvt.shop:80';
         let currentHls = null;
         let userData = null;
 
@@ -165,41 +166,42 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const loader = document.getElementById('loginLoader');
-
+            
             loader.style.display = 'block';
             
             try {
-                // Verificar autenticação
-                const authResponse = await fetch(`http://${SERVER_DNS}/player_api.php?username=${username}&password=${password}`);
-                userData = await authResponse.json();
+                const authUrl = `http://${SERVER_DNS}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+                const response = await fetch(authUrl);
                 
-                if(userData.user_info.auth === 1) {
-                    loadCategories();
+                if(!response.ok) throw new Error('Erro na autenticação');
+                
+                userData = await response.json();
+                
+                if(userData.user_info && userData.user_info.auth === 1) {
+                    await loadCategories();
                     document.querySelector('.login-container').style.display = 'none';
                     document.getElementById('categories').style.display = 'grid';
                 }
             } catch(error) {
-                alert('Credenciais inválidas!');
+                alert('Falha no login: ' + error.message);
             } finally {
                 loader.style.display = 'none';
             }
         }
 
         async function loadCategories() {
-            const { username, password } = userData.user_info;
-            
-            // Carregar conteúdos
             const endpoints = [
-                { type: 'live', element: 'liveTV' },
-                { type: 'movie', element: 'movies' },
-                { type: 'series', element: 'series' }
+                { type: 'live', target: 'liveTV' },
+                { type: 'movie', target: 'movies' },
+                { type: 'series', target: 'series' }
             ];
 
-            for (const endpoint of endpoints) {
+            for(const endpoint of endpoints) {
                 try {
-                    const response = await fetch(`http://${SERVER_DNS}/${endpoint.type}/${username}/${password}/`);
+                    const url = `http://${SERVER_DNS}/${endpoint.type}/${userData.user_info.username}/${userData.user_info.password}/`;
+                    const response = await fetch(url);
                     const data = await response.json();
-                    populateList(endpoint.element, data);
+                    populateList(endpoint.target, data);
                 } catch(error) {
                     console.error(`Erro ao carregar ${endpoint.type}:`, error);
                 }
@@ -209,21 +211,22 @@
         function populateList(elementId, items) {
             const container = document.getElementById(elementId);
             container.innerHTML = items.map(item => `
-                <div class="channel-item" onclick="playStream('${item.stream_type}', '${item.stream_id}')">
-                    ${item.name}
+                <div class="channel-item" 
+                     onclick="playStream('${item.stream_type}', '${item.stream_id}')"
+                     title="${item.name}">
+                    ${item.name.substring(0, 30)}${item.name.length > 30 ? '...' : ''}
                     ${item.rating ? `<span class="rating">⭐ ${item.rating}</span>` : ''}
                 </div>
             `).join('');
         }
 
         function playStream(type, id) {
-            const { username, password } = userData.user_info;
-            const videoContainer = document.getElementById('video-container');
-            
-            videoContainer.style.display = 'block';
-            const streamUrl = `http://${SERVER_DNS}/${type}/${username}/${password}/${id}`;
-            
+            const streamUrl = `http://${SERVER_DNS}/${type}/${userData.user_info.username}/${userData.user_info.password}/${id}`;
             const video = document.getElementById('videoPlayer');
+            const videoContainer = document.getElementById('video-container');
+
+            videoContainer.style.display = 'block';
+            
             if(currentHls) currentHls.destroy();
 
             if(Hls.isSupported()) {
@@ -237,7 +240,7 @@
             }
         }
 
-        // Fechar player ao pressionar ESC
+        // Controles do player
         document.addEventListener('keydown', (e) => {
             if(e.key === 'Escape') {
                 document.getElementById('video-container').style.display = 'none';
