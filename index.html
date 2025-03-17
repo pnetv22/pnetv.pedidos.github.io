@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Pixel Survival</title>
-    <meta charset="UTF-8">
+    <title>Pixel Fighter</title>
     <style>
         * {
             margin: 0;
@@ -10,217 +9,174 @@
             image-rendering: pixelated;
         }
         body {
-            background: #1a1a1a;
+            background: #000;
             overflow: hidden;
-            touch-action: none;
         }
-        #gameCanvas {
-            background: #0d0d0d;
+        #game {
+            width: 960px;
+            height: 540px;
+            margin: auto;
+            position: relative;
         }
-        #ui {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            color: white;
-            font-family: 'Courier New', monospace;
-            user-select: none;
+        canvas {
+            border: 2px solid #333;
+        }
+        .health-bar {
+            position: absolute;
+            top: 20px;
+            width: 300px;
+            height: 20px;
+            border: 2px solid #fff;
+        }
+        #p1-health {
+            left: 20px;
+            background: linear-gradient(to right, #ff0000, #990000);
+        }
+        #p2-health {
+            right: 20px;
+            background: linear-gradient(to left, #ff0000, #990000);
         }
     </style>
 </head>
 <body>
-    <div id="ui">
-        <div>HP: <span id="hp">100</span></div>
-        <div>Score: <span id="score">0</span></div>
-        <div>Wave: <span id="wave">1</span></div>
+    <div id="game">
+        <div class="health-bar" id="p1-health"></div>
+        <div class="health-bar" id="p2-health"></div>
+        <canvas id="canvas"></canvas>
     </div>
-    <canvas id="gameCanvas"></canvas>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
+        const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        const UI = {
-            hp: document.getElementById('hp'),
-            score: document.getElementById('score'),
-            wave: document.getElementById('wave')
+        const SCALE = 2;
+        
+        // Configuração inicial
+        canvas.width = 960;
+        canvas.height = 540;
+        
+        // Sistema de sprites
+        const sprites = {
+            ken: new Image(),
+            ryu: new Image(),
+            stage: new Image()
         };
 
-        // Configuração inicial
-        const SCALE = 3;
-        const TILE_SIZE = 16;
-        let gameSize = { w: 320, h: 240 };
-        
-        function resize() {
-            const scale = Math.min(window.innerWidth / gameSize.w, 
-                                window.innerHeight / gameSize.h);
-            canvas.width = gameSize.w * SCALE;
-            canvas.height = gameSize.h * SCALE;
-            ctx.scale(SCALE, SCALE);
-        }
-        window.addEventListener('resize', resize);
-        resize();
+        // Carregar sprites (substitua com suas próprias sprites)
+        sprites.ken.src = 'data:image/png;base64,iVBORw0KG...';
+        sprites.ryu.src = 'data:image/png;base64,iVBORw0KG...';
+        sprites.stage.src = 'data:image/png;base64,iVBORw0KG...';
 
-        // Sistema de sprites
-        const sprites = new Image();
-        sprites.src = 'data:image/png;base64,iVBORw0KGgo...'; // Sprite sheet em base64
+        // Sistema de personagem
+        class Fighter {
+            constructor(x, y, sprite, controls) {
+                this.x = x;
+                this.y = y;
+                this.sprite = sprite;
+                this.controls = controls;
+                this.state = 'idle';
+                this.frame = 0;
+                this.health = 100;
+                this.combo = 0;
+                this.lastHit = 0;
+                this.facing = 1;
+            }
 
-        // Entidades do jogo
-        class Entity {
-            constructor(x, y, w, h) {
-                this.pos = { x, y };
-                this.size = { w, h };
-                this.vel = { x: 0, y: 0 };
+            update() {
+                // Lógica de estado e animação
+                if(this.state === 'attack' && this.frame > 6) {
+                    this.setState('idle');
+                }
+                this.frame = (this.frame + 0.2) % 8;
+            }
+
+            setState(newState) {
+                this.state = newState;
+                this.frame = 0;
+            }
+
+            draw() {
+                // Animação simples (8 frames por animação)
+                const frameX = Math.floor(this.frame) * 64;
+                const frameY = this.state === 'attack' ? 64 : 0;
+                
+                ctx.save();
+                if(this.facing === -1) {
+                    ctx.scale(-1, 1);
+                    ctx.drawImage(this.sprite, frameX, frameY, 64, 64, -this.x-64, this.y, 64, 64);
+                } else {
+                    ctx.drawImage(this.sprite, frameX, frameY, 64, 64, this.x, this.y, 64, 64);
+                }
+                ctx.restore();
             }
         }
 
-        class Player extends Entity {
-            constructor() {
-                super(gameSize.w/2, gameSize.h/2, 16, 16);
-                this.hp = 100;
-                this.invincible = false;
-                this.lastShot = 0;
-            }
-            
-            takeDamage(amount) {
-                if(this.invincible) return;
-                this.hp = Math.max(0, this.hp - amount);
-                this.invincible = true;
-                setTimeout(() => this.invincible = false, 1000);
-            }
-        }
-
-        // Sistema de partículas
-        const particles = [];
-        class Particle {
-            constructor(x, y, color) {
-                this.pos = { x, y };
-                this.vel = { x: (Math.random()-0.5)*2, y: (Math.random()-0.5)*2 };
-                this.life = 1;
-                this.color = color;
-            }
-        }
-
-        // Sistema de waves
-        let wave = 1;
-        let enemies = [];
-        const ENEMY_TYPES = [
-            { speed: 1.5, hp: 3, color: '#ff0000', score: 10 },
-            { speed: 2.0, hp: 1, color: '#00ff00', score: 15 }
+        // Sistema de luta
+        const fighters = [
+            new Fighter(200, 300, sprites.ken, { left: 'a', right: 'd', jump: 'w', attack: ' ' }),
+            new Fighter(700, 300, sprites.ryu, { left: 'ArrowLeft', right: 'ArrowRight', jump: 'ArrowUp', attack: 'Enter' })
         ];
 
-        function spawnWave() {
-            for(let i = 0; i < wave * 5; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                enemies.push({
-                    ...ENEMY_TYPES[wave > 3 ? 1 : 0],
-                    pos: {
-                        x: gameSize.w/2 + Math.cos(angle) * 200,
-                        y: gameSize.h/2 + Math.sin(angle) * 200
-                    },
-                    target: player.pos
-                });
-            }
-            wave++;
-        }
+        // Sistema de input
+        const keys = {};
+        window.addEventListener('keydown', e => keys[e.key] = true);
+        window.addEventListener('keyup', e => keys[e.key] = false);
 
         // Sistema de colisão
         function checkCollision(a, b) {
-            return a.pos.x < b.pos.x + b.size.w &&
-                   a.pos.x + a.size.w > b.pos.x &&
-                   a.pos.y < b.pos.y + b.size.h &&
-                   a.pos.y + a.size.h > b.pos.y;
+            return a.x < b.x + 64 &&
+                   a.x + 64 > b.x &&
+                   a.y < b.y + 64 &&
+                   a.y + 64 > b.y;
         }
 
-        // Controles
-        const keys = {};
-        const mouse = { x: 0, y: 0, down: false };
-        window.addEventListener('keydown', e => keys[e.key] = true);
-        window.addEventListener('keyup', e => keys[e.key] = false);
-        canvas.addEventListener('mousemove', e => {
-            const rect = canvas.getBoundingClientRect();
-            mouse.x = (e.clientX - rect.left) / SCALE;
-            mouse.y = (e.clientY - rect.top) / SCALE;
-        });
-        canvas.addEventListener('mousedown', () => mouse.down = true);
-        canvas.addEventListener('mouseup', () => mouse.down = false);
-
-        // Jogador e game loop
-        const player = new Player();
-        let score = 0;
-        let gameOver = false;
-
-        function update(dt) {
-            if(gameOver) return;
-
-            // Movimento do jogador
-            const speed = 3;
-            if(keys['a']) player.pos.x -= speed;
-            if(keys['d']) player.pos.x += speed;
-            if(keys['w']) player.pos.y -= speed;
-            if(keys['s']) player.pos.y += speed;
-
-            // Atirar com mouse
-            if(mouse.down && Date.now() - player.lastShot > 200) {
-                // Lógica de tiro
-                player.lastShot = Date.now();
-            }
-
-            // Atualizar inimigos
-            enemies.forEach(enemy => {
-                const angle = Math.atan2(
-                    player.pos.y - enemy.pos.y,
-                    player.pos.x - enemy.pos.x
-                );
+        // Game loop
+        function update() {
+            fighters.forEach((fighter, index) => {
+                const opponent = fighters[1 - index];
                 
-                enemy.pos.x += Math.cos(angle) * enemy.speed;
-                enemy.pos.y += Math.sin(angle) * enemy.speed;
-
-                if(checkCollision(enemy, player)) {
-                    player.takeDamage(10);
-                    particles.push(new Particle(
-                        player.pos.x, player.pos.y, '#ff0000'
-                    ));
+                // Movimento
+                if(keys[fighter.controls.left]) {
+                    fighter.x -= 5;
+                    fighter.facing = -1;
                 }
-            });
+                if(keys[fighter.controls.right]) {
+                    fighter.x += 5;
+                    fighter.facing = 1;
+                }
+                
+                // Ataque
+                if(keys[fighter.controls.attack] && fighter.state !== 'attack') {
+                    fighter.setState('attack');
+                    if(checkCollision(fighter, opponent)) {
+                        const damage = 10 + Math.random() * 5;
+                        opponent.health = Math.max(0, opponent.health - damage);
+                        fighter.combo++;
+                        document.getElementById(index === 0 ? 'p2-health' : 'p1-health').style.width = 
+                            `${opponent.health * 3}px`;
+                    }
+                }
 
-            // Verificar morte
-            if(player.hp <= 0) {
-                gameOver = true;
-            }
+                // Limites do palco
+                fighter.x = Math.max(50, Math.min(canvas.width - 114, fighter.x));
+                fighter.update();
+            });
         }
 
         function draw() {
-            ctx.fillStyle = '#0d0d0d';
-            ctx.fillRect(0, 0, gameSize.w, gameSize.h);
-
-            // Desenhar jogador
-            ctx.fillStyle = player.invincible ? '#5555ff' : '#3333ff';
-            ctx.fillRect(player.pos.x, player.pos.y, player.size.w, player.size.h);
-
-            // Desenhar inimigos
-            enemies.forEach(enemy => {
-                ctx.fillStyle = enemy.color;
-                ctx.beginPath();
-                ctx.arc(enemy.pos.x, enemy.pos.y, 8, 0, Math.PI*2);
-                ctx.fill();
-            });
-
-            // Desenhar UI
-            UI.hp.textContent = player.hp;
-            UI.score.textContent = score;
-            UI.wave.textContent = wave-1;
+            // Fundo
+            ctx.drawImage(sprites.stage, 0, 0, canvas.width, canvas.height);
+            
+            // Personagens
+            fighters.forEach(fighter => fighter.draw());
         }
 
         // Loop principal
-        let lastTime = 0;
-        function gameLoop(timestamp) {
-            const dt = timestamp - lastTime;
-            lastTime = timestamp;
-
-            update(dt);
+        function gameLoop() {
+            update();
             draw();
             requestAnimationFrame(gameLoop);
         }
-        requestAnimationFrame(gameLoop);
+        gameLoop();
     </script>
 </body>
 </html>
