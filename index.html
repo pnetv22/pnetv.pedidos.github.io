@@ -124,8 +124,8 @@
 <body>
     <div class="login-box">
         <h2 style="text-align: center; margin-bottom: 25px;">🔑 Login PrimeTV</h2>
-        <input type="text" id="username" placeholder="Usuário" value="4512877">
-        <input type="password" id="password" placeholder="Senha" value="7672155">
+        <input type="text" id="username" placeholder="Usuário">
+        <input type="password" id="password" placeholder="Senha">
         <button onclick="loadContent()">▶️ Acessar Conteúdo</button>
         <div class="loader" id="loader"></div>
     </div>
@@ -154,12 +154,20 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             
+            if(!username || !password) {
+                alert('Por favor, preencha usuário e senha!');
+                return;
+            }
+
             loader.style.display = 'block';
             
             try {
                 // Carregar lista M3U
                 const m3uUrl = `${SERVER.baseURL}${SERVER.m3uPath}?username=${username}&password=${password}&type=m3u_plus`;
                 const response = await fetch(m3uUrl);
+                
+                if(!response.ok) throw new Error('Credenciais inválidas');
+                
                 const m3uData = await response.text();
                 
                 // Processar conteúdo
@@ -171,7 +179,7 @@
                 document.getElementById('content').style.display = 'grid';
                 
             } catch(error) {
-                alert('Erro ao carregar conteúdo: ' + error.message);
+                alert('Erro: ' + error.message);
             } finally {
                 loader.style.display = 'none';
             }
