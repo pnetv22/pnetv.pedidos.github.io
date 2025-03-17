@@ -1,131 +1,226 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html>
 <head>
+    <title>Pixel Survival</title>
     <meta charset="UTF-8">
-    <title>Jogo de Pegar Objetos 🎮</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            image-rendering: pixelated;
+        }
         body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background-color: #2c3e50;
-            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            overflow: hidden;
+            touch-action: none;
         }
         #gameCanvas {
-            border: 3px solid #ecf0f1;
-            border-radius: 5px;
-            background-color: #34495e;
+            background: #0d0d0d;
         }
-        #score {
-            color: #ecf0f1;
-            font-size: 2em;
-            margin: 10px;
-        }
-        .controls {
-            color: #bdc3c7;
-            margin: 10px;
-            text-align: center;
+        #ui {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: 'Courier New', monospace;
+            user-select: none;
         }
     </style>
 </head>
 <body>
-    <div id="score">Pontuação: 0</div>
-    <canvas id="gameCanvas" width="600" height="400"></canvas>
-    <div class="controls">
-        Use as setas do teclado para mover<br>
-        Pressione Espaço para reiniciar
+    <div id="ui">
+        <div>HP: <span id="hp">100</span></div>
+        <div>Score: <span id="score">0</span></div>
+        <div>Wave: <span id="wave">1</span></div>
     </div>
+    <canvas id="gameCanvas"></canvas>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const scoreElement = document.getElementById('score');
-
-        let player = {
-            x: 300,
-            y: 350,
-            size: 30,
-            speed: 7
+        const UI = {
+            hp: document.getElementById('hp'),
+            score: document.getElementById('score'),
+            wave: document.getElementById('wave')
         };
 
-        let objects = [];
-        let score = 0;
-        const keys = {};
-
         // Configuração inicial
-        function createObject() {
-            return {
-                x: Math.random() * (canvas.width - 20),
-                y: 0,
-                size: 20,
-                speed: 3 + Math.random() * 3
-            };
+        const SCALE = 3;
+        const TILE_SIZE = 16;
+        let gameSize = { w: 320, h: 240 };
+        
+        function resize() {
+            const scale = Math.min(window.innerWidth / gameSize.w, 
+                                window.innerHeight / gameSize.h);
+            canvas.width = gameSize.w * SCALE;
+            canvas.height = gameSize.h * SCALE;
+            ctx.scale(SCALE, SCALE);
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Sistema de sprites
+        const sprites = new Image();
+        sprites.src = 'data:image/png;base64,iVBORw0KGgo...'; // Sprite sheet em base64
+
+        // Entidades do jogo
+        class Entity {
+            constructor(x, y, w, h) {
+                this.pos = { x, y };
+                this.size = { w, h };
+                this.vel = { x: 0, y: 0 };
+            }
+        }
+
+        class Player extends Entity {
+            constructor() {
+                super(gameSize.w/2, gameSize.h/2, 16, 16);
+                this.hp = 100;
+                this.invincible = false;
+                this.lastShot = 0;
+            }
+            
+            takeDamage(amount) {
+                if(this.invincible) return;
+                this.hp = Math.max(0, this.hp - amount);
+                this.invincible = true;
+                setTimeout(() => this.invincible = false, 1000);
+            }
+        }
+
+        // Sistema de partículas
+        const particles = [];
+        class Particle {
+            constructor(x, y, color) {
+                this.pos = { x, y };
+                this.vel = { x: (Math.random()-0.5)*2, y: (Math.random()-0.5)*2 };
+                this.life = 1;
+                this.color = color;
+            }
+        }
+
+        // Sistema de waves
+        let wave = 1;
+        let enemies = [];
+        const ENEMY_TYPES = [
+            { speed: 1.5, hp: 3, color: '#ff0000', score: 10 },
+            { speed: 2.0, hp: 1, color: '#00ff00', score: 15 }
+        ];
+
+        function spawnWave() {
+            for(let i = 0; i < wave * 5; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                enemies.push({
+                    ...ENEMY_TYPES[wave > 3 ? 1 : 0],
+                    pos: {
+                        x: gameSize.w/2 + Math.cos(angle) * 200,
+                        y: gameSize.h/2 + Math.sin(angle) * 200
+                    },
+                    target: player.pos
+                });
+            }
+            wave++;
+        }
+
+        // Sistema de colisão
+        function checkCollision(a, b) {
+            return a.pos.x < b.pos.x + b.size.w &&
+                   a.pos.x + a.size.w > b.pos.x &&
+                   a.pos.y < b.pos.y + b.size.h &&
+                   a.pos.y + a.size.h > b.pos.y;
         }
 
         // Controles
-        window.addEventListener('keydown', (e) => keys[e.key] = true);
-        window.addEventListener('keyup', (e) => keys[e.key] = false);
+        const keys = {};
+        const mouse = { x: 0, y: 0, down: false };
+        window.addEventListener('keydown', e => keys[e.key] = true);
+        window.addEventListener('keyup', e => keys[e.key] = false);
+        canvas.addEventListener('mousemove', e => {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = (e.clientX - rect.left) / SCALE;
+            mouse.y = (e.clientY - rect.top) / SCALE;
+        });
+        canvas.addEventListener('mousedown', () => mouse.down = true);
+        canvas.addEventListener('mouseup', () => mouse.down = false);
 
-        // Loop do jogo
-        function gameLoop() {
-            update();
-            draw();
-            requestAnimationFrame(gameLoop);
-        }
+        // Jogador e game loop
+        const player = new Player();
+        let score = 0;
+        let gameOver = false;
 
-        function update() {
+        function update(dt) {
+            if(gameOver) return;
+
             // Movimento do jogador
-            if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
-            if (keys['ArrowRight'] && player.x < canvas.width - player.size) player.x += player.speed;
+            const speed = 3;
+            if(keys['a']) player.pos.x -= speed;
+            if(keys['d']) player.pos.x += speed;
+            if(keys['w']) player.pos.y -= speed;
+            if(keys['s']) player.pos.y += speed;
 
-            // Cria novos objetos
-            if (Math.random() < 0.03) {
-                objects.push(createObject());
+            // Atirar com mouse
+            if(mouse.down && Date.now() - player.lastShot > 200) {
+                // Lógica de tiro
+                player.lastShot = Date.now();
             }
 
-            // Atualiza objetos
-            for (let i = objects.length - 1; i >= 0; i--) {
-                objects[i].y += objects[i].speed;
+            // Atualizar inimigos
+            enemies.forEach(enemy => {
+                const angle = Math.atan2(
+                    player.pos.y - enemy.pos.y,
+                    player.pos.x - enemy.pos.x
+                );
+                
+                enemy.pos.x += Math.cos(angle) * enemy.speed;
+                enemy.pos.y += Math.sin(angle) * enemy.speed;
 
-                // Verifica colisão
-                if (objects[i].y + objects[i].size > player.y &&
-                    objects[i].x < player.x + player.size &&
-                    objects[i].x + objects[i].size > player.x) {
-                    score++;
-                    scoreElement.textContent = `Pontuação: ${score}`;
-                    objects.splice(i, 1);
-                } else if (objects[i].y > canvas.height) {
-                    objects.splice(i, 1);
+                if(checkCollision(enemy, player)) {
+                    player.takeDamage(10);
+                    particles.push(new Particle(
+                        player.pos.x, player.pos.y, '#ff0000'
+                    ));
                 }
-            }
+            });
 
-            // Reiniciar jogo
-            if (keys[' ']) {
-                score = 0;
-                objects = [];
-                scoreElement.textContent = `Pontuação: ${score}`;
+            // Verificar morte
+            if(player.hp <= 0) {
+                gameOver = true;
             }
         }
 
         function draw() {
-            // Limpa canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#0d0d0d';
+            ctx.fillRect(0, 0, gameSize.w, gameSize.h);
 
-            // Desenha jogador
-            ctx.fillStyle = '#3498db';
-            ctx.fillRect(player.x, player.y, player.size, player.size);
+            // Desenhar jogador
+            ctx.fillStyle = player.invincible ? '#5555ff' : '#3333ff';
+            ctx.fillRect(player.pos.x, player.pos.y, player.size.w, player.size.h);
 
-            // Desenha objetos
-            ctx.fillStyle = '#e74c3c';
-            objects.forEach(obj => {
+            // Desenhar inimigos
+            enemies.forEach(enemy => {
+                ctx.fillStyle = enemy.color;
                 ctx.beginPath();
-                ctx.arc(obj.x, obj.size/2, obj.size/2, 0, Math.PI * 2);
+                ctx.arc(enemy.pos.x, enemy.pos.y, 8, 0, Math.PI*2);
                 ctx.fill();
             });
+
+            // Desenhar UI
+            UI.hp.textContent = player.hp;
+            UI.score.textContent = score;
+            UI.wave.textContent = wave-1;
         }
 
-        // Inicia o jogo
-        gameLoop();
+        // Loop principal
+        let lastTime = 0;
+        function gameLoop(timestamp) {
+            const dt = timestamp - lastTime;
+            lastTime = timestamp;
+
+            update(dt);
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        requestAnimationFrame(gameLoop);
     </script>
 </body>
 </html>
