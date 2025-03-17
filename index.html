@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Player Premium</title>
+    <title>Player IPTV Premium</title>
     <style>
         :root {
             --primary: #2196F3;
@@ -125,12 +125,12 @@
 </head>
 <body>
     <div class="login-container">
-        <h2>Acesso do Assinante</h2>
+        <h2>Acesso Premium</h2>
         <div class="input-group">
-            <input type="text" id="username" placeholder="Nome de usuário">
+            <input type="text" id="username" placeholder="Usuário" autocomplete="username">
         </div>
         <div class="input-group">
-            <input type="password" id="password" placeholder="Senha">
+            <input type="password" id="password" placeholder="Senha" autocomplete="current-password">
         </div>
         <button onclick="login()">Acessar</button>
         <div class="loader" id="loginLoader"></div>
@@ -138,15 +138,15 @@
 
     <div class="categories" id="categories">
         <div class="category-box">
-            <h3>Canais ao Vivo</h3>
+            <h3>📺 Canais ao Vivo</h3>
             <div class="channel-list" id="liveTV"></div>
         </div>
         <div class="category-box">
-            <h3>Filmes</h3>
+            <h3>🎬 Filmes</h3>
             <div class="channel-list" id="movies"></div>
         </div>
         <div class="category-box">
-            <h3>Séries</h3>
+            <h3>🍿 Séries</h3>
             <div class="channel-list" id="series"></div>
         </div>
     </div>
@@ -157,71 +157,91 @@
 
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script>
-        // Configurações do servidor (ocultas do usuário)
-        const SERVER_DNS = 'radiopvt.shop:80';
+        // Configuração do servidor (oculta do usuário)
+        const SERVER_CONFIG = {
+            host: 'radiopvt.shop',
+            port: '80',
+            endpoints: {
+                auth: '/player_api.php',
+                live: '/live',
+                movie: '/movie',
+                series: '/series'
+            }
+        };
+
         let currentHls = null;
         let userData = null;
 
         async function login() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
             const loader = document.getElementById('loginLoader');
             
             loader.style.display = 'block';
             
             try {
-                const authUrl = `http://${SERVER_DNS}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
-                const response = await fetch(authUrl);
+                // 1. Testar conexão com o servidor
+                const serverTest = await fetch(`http://${SERVER_CONFIG.host}:${SERVER_CONFIG.port}/`);
+                if(!serverTest.ok) throw new Error('Servidor offline');
+
+                // 2. Autenticação
+                const authUrl = new URL(`http://${SERVER_CONFIG.host}:${SERVER_CONFIG.port}${SERVER_CONFIG.endpoints.auth}`);
+                authUrl.searchParams.append('username', username);
+                authUrl.searchParams.append('password', password);
+
+                const authResponse = await fetch(authUrl);
+                if(!authResponse.ok) throw new Error(`HTTP ${authResponse.status}`);
                 
-                if(!response.ok) throw new Error('Erro na autenticação');
-                
-                userData = await response.json();
-                
-                if(userData.user_info && userData.user_info.auth === 1) {
-                    await loadCategories();
-                    document.querySelector('.login-container').style.display = 'none';
-                    document.getElementById('categories').style.display = 'grid';
-                }
+                userData = await authResponse.json();
+                if(!userData?.user_info?.auth) throw new Error('Acesso negado');
+
+                // 3. Carregar conteúdo
+                await loadContent();
+                document.querySelector('.login-container').style.display = 'none';
+                document.getElementById('categories').style.display = 'grid';
+
             } catch(error) {
-                alert('Falha no login: ' + error.message);
+                console.error('Erro detalhado:', error);
+                handleLoginError(error);
             } finally {
                 loader.style.display = 'none';
             }
         }
 
-        async function loadCategories() {
-            const endpoints = [
-                { type: 'live', target: 'liveTV' },
-                { type: 'movie', target: 'movies' },
-                { type: 'series', target: 'series' }
-            ];
-
-            for(const endpoint of endpoints) {
-                try {
-                    const url = `http://${SERVER_DNS}/${endpoint.type}/${userData.user_info.username}/${userData.user_info.password}/`;
-                    const response = await fetch(url);
-                    const data = await response.json();
-                    populateList(endpoint.target, data);
-                } catch(error) {
-                    console.error(`Erro ao carregar ${endpoint.type}:`, error);
-                }
+        async function loadContent() {
+            try {
+                await Promise.all([
+                    loadCategory('live', 'liveTV'),
+                    loadCategory('movie', 'movies'),
+                    loadCategory('series', 'series')
+                ]);
+            } catch(error) {
+                console.error('Erro ao carregar conteúdo:', error);
+                alert('Erro ao carregar conteúdo!');
             }
         }
 
-        function populateList(elementId, items) {
-            const container = document.getElementById(elementId);
+        async function loadCategory(type, targetId) {
+            const url = `http://${SERVER_CONFIG.host}:${SERVER_CONFIG.port}/${type}/${userData.user_info.username}/${userData.user_info.password}/`;
+            const response = await fetch(url);
+            const data = await response.json();
+            populateList(targetId, data);
+        }
+
+        function populateList(targetId, items) {
+            const container = document.getElementById(targetId);
             container.innerHTML = items.map(item => `
                 <div class="channel-item" 
                      onclick="playStream('${item.stream_type}', '${item.stream_id}')"
                      title="${item.name}">
-                    ${item.name.substring(0, 30)}${item.name.length > 30 ? '...' : ''}
+                    ${item.name.substring(0, 25)}${item.name.length > 25 ? '...' : ''}
                     ${item.rating ? `<span class="rating">⭐ ${item.rating}</span>` : ''}
                 </div>
             `).join('');
         }
 
         function playStream(type, id) {
-            const streamUrl = `http://${SERVER_DNS}/${type}/${userData.user_info.username}/${userData.user_info.password}/${id}`;
+            const streamUrl = `http://${SERVER_CONFIG.host}:${SERVER_CONFIG.port}/${type}/${userData.user_info.username}/${userData.user_info.password}/${id}`;
             const video = document.getElementById('videoPlayer');
             const videoContainer = document.getElementById('video-container');
 
@@ -240,7 +260,17 @@
             }
         }
 
-        // Controles do player
+        function handleLoginError(error) {
+            const errorMap = {
+                'Servidor offline': 'Servidor indisponível. Tente mais tarde.',
+                'Acesso negado': 'Usuário/senha incorretos!',
+                'Failed to fetch': 'Sem conexão com a internet'
+            };
+
+            alert(errorMap[error.message] || `Erro desconhecido: ${error.message}`);
+        }
+
+        // Controles
         document.addEventListener('keydown', (e) => {
             if(e.key === 'Escape') {
                 document.getElementById('video-container').style.display = 'none';
