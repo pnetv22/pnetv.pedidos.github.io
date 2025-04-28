@@ -1,0 +1,32 @@
+name: Excluir Conta Temporária
+
+on:
+  repository_dispatch:
+    types: [delete_temp_account]
+
+jobs:
+  excluir-conta:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Remover Conta
+        run: |
+          python -c "
+          import json
+          with open('accounts.json', 'r') as f:
+              data = json.load(f)
+          for main_acc in data['contas_principais']:
+              main_acc['temporarias'] = [temp for temp in main_acc['temporarias'] if temp['username'] != '${{ github.event.client_payload.username }}']
+          with open('accounts.json', 'w') as f:
+              json.dump(data, f, indent=2)
+          "
+
+      - name: Commit e Push
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add accounts.json
+          git commit -m "Remove conta temporária"
+          git push
