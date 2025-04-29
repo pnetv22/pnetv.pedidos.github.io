@@ -1,93 +1,84 @@
-<!DOCTYPE html><html lang="pt-BR">
+<!DOCTYPE html>
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Troll Fullscreen</title>
   <style>
-    /* Reset básico */
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }/* Wrapper fullscreen */
-#videoWrapper {
-  position: relative;
-  width: 100vw;
-  height: 100vh;
-  background: #000;
-}
-
-/* Iframes ocupam toda área */
-.video-iframe {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  border: none;
-}
-
-/* Botão de play bem maior */
-#playBtn {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 6rem;
-  color: #fff;
-  background: rgba(0,0,0,0.5);
-  border-radius: 50%;
-  width: 200px; height: 200px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  z-index: 10;
-}
-
-/* Spinner de carregamento */
-#spinner {
-  display: none;
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  width: 60px; height: 60px;
-  border: 8px solid rgba(255,255,255,0.3);
-  border-top: 8px solid #fff;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  z-index: 11;
-}
-@keyframes spin {
-  to { transform: translate(-50%, -50%) rotate(360deg); }
-}
-
-/* Blocker full overlay */
-#blocker {
-  display: none;
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: transparent;
-  z-index: 9;
-}
-
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+    #videoWrapper {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+    }
+    .video-iframe {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      border: none;
+    }
+    #playBtn {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 6rem;
+      color: #fff;
+      background: rgba(0,0,0,0.5);
+      border-radius: 50%;
+      width: 200px; height: 200px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      z-index: 10;
+    }
+    #spinner {
+      display: none;
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60px; height: 60px;
+      border: 8px solid rgba(255,255,255,0.3);
+      border-top: 8px solid #fff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      z-index: 11;
+    }
+    @keyframes spin {
+      to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+    #blocker {
+      display: none;
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: transparent;
+      z-index: 9;
+    }
   </style>
 </head>
-<body>  <div id="videoWrapper">
-    <!-- Botão de entrada (tela de play) -->
-    <div id="playBtn">▶</div><!-- Player isca -->
-<iframe id="baitPlayer" class="video-iframe"
-  src="https://www.youtube.com/embed/fpgYG7uyF10?enablejsapi=1&controls=0&modestbranding=1&rel=0&autoplay=0"
-  allow="autoplay; encrypted-media" allowfullscreen>
-</iframe>
+<body>
 
-<!-- Player troll (áudio oculto) -->
-<iframe id="trollPlayer" class="video-iframe"
-  src="https://www.youtube.com/embed/S06IYs3csWI?enablejsapi=1&controls=0&modestbranding=1&rel=0&start=2&autoplay=0"
-  style="width:0; height:0; opacity:0; pointer-events:none;"
-  allow="autoplay; encrypted-media">
-</iframe>
+  <div id="videoWrapper">
+    <div id="playBtn">▶</div>
 
-<!-- Spinner -->
-<div id="spinner"></div>
+    <iframe id="baitPlayer" class="video-iframe"
+      src="https://www.youtube.com/embed/fpgYG7uyF10?enablejsapi=1&controls=0&modestbranding=1&rel=0&autoplay=0"
+      allow="autoplay; encrypted-media" allowfullscreen>
+    </iframe>
 
-<!-- Blocker para impedir interações -->
-<div id="blocker"></div>
+    <iframe id="trollPlayer" class="video-iframe"
+      src="https://www.youtube.com/embed/S06IYs3csWI?enablejsapi=1&controls=0&modestbranding=1&rel=0&start=2&autoplay=0"
+      style="width:0; height:0; opacity:0; pointer-events:none;"
+      allow="autoplay; encrypted-media">
+    </iframe>
 
-  </div>  <script>
+    <div id="spinner"></div>
+
+    <div id="blocker"></div>
+  </div>
+
+  <script>
     let baitPlayer, trollPlayer;
     let started = false;
     const playBtn = document.getElementById('playBtn');
@@ -95,7 +86,6 @@
     const blocker = document.getElementById('blocker');
     const wrapper = document.getElementById('videoWrapper');
 
-    // Carrega API do YouTube
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
@@ -111,46 +101,35 @@
       if (started) return;
       started = true;
 
-      // Fullscreen
       if (wrapper.requestFullscreen) wrapper.requestFullscreen();
       else if (wrapper.webkitRequestFullscreen) wrapper.webkitRequestFullscreen();
 
-      // Esconde botão e bloqueia interações
       playBtn.style.display = 'none';
       blocker.style.display = 'block';
 
-      // Inicia isca
       baitPlayer.playVideo();
 
-      // Após 5s, pausa isca e mostra spinner
       setTimeout(() => {
         baitPlayer.pauseVideo();
         spinner.style.display = 'block';
 
-        // Após 2s de spinner, inicia trollagem
         setTimeout(() => {
           spinner.style.display = 'none';
-          // Seta volume max e toca
           trollPlayer.setVolume(100);
           trollPlayer.playVideo();
         }, 2000);
+
       }, 5000);
     }
 
-    // Quando termina troll, restaura tudo
     function onTrollStateChange(event) {
       if (event.data === YT.PlayerState.ENDED) {
-        // Sai do fullscreen
         if (document.exitFullscreen) document.exitFullscreen();
         else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
 
-        // Remove blocker
         blocker.style.display = 'none';
-
-        // Restaura botão de play para próxima execução
         playBtn.style.display = 'flex';
 
-        // Reseta players
         baitPlayer.unMute();
         baitPlayer.seekTo(0);
         trollPlayer.pauseVideo();
@@ -159,5 +138,7 @@
     }
 
     playBtn.addEventListener('click', startTroll);
-  </script></body>
+  </script>
+
+</body>
 </html>
