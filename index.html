@@ -22,21 +22,7 @@
       border: none;
     }
 
-    #playBtn {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 6rem;
-      color: #fff;
-      background: rgba(0,0,0,0.5);
-      border-radius: 50%;
-      width: 200px; height: 200px;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-      z-index: 10;
-      user-select: none;
-    }
-
+    /* Spinner */
     #spinner {
       display: none;
       position: absolute;
@@ -50,9 +36,7 @@
       z-index: 11;
     }
 
-    @keyframes spin {
-      to { transform: translate(-50%, -50%) rotate(360deg); }
-    }
+    @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
 
     #blocker {
       display: none;
@@ -68,14 +52,13 @@
       bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
-      display: flex;
+      display: none;
       gap: 20px;
       z-index: 10;
     }
 
     .fake-button {
-      width: 50px;
-      height: 50px;
+      width: 50px; height: 50px;
       background: rgba(255,255,255,0.1);
       border-radius: 5px;
       display: flex;
@@ -99,9 +82,7 @@
       animation: blink 0.8s steps(1) infinite;
     }
 
-    @keyframes blink {
-      50% { opacity: 0; }
-    }
+    @keyframes blink { 50% { opacity: 0; } }
 
     .hack-text {
       display: none;
@@ -118,18 +99,21 @@
 <body>
 
 <div id="videoWrapper">
-  <div id="playBtn" role="button" aria-label="Reproduzir vídeo">▶</div>
-
+  <!-- Vídeos --><!-- Bait -->
   <iframe id="baitPlayer" class="video-iframe"
-    src="https://www.youtube.com/embed/fpgYG7uyF10?enablejsapi=1&controls=0&modestbranding=1&rel=0&autoplay=0"
+    src="https://www.youtube.com/embed/fpgYG7uyF10?enablejsapi=1&controls=0&modestbranding=1&rel=0"
     allow="autoplay; encrypted-media" allowfullscreen>
   </iframe>
 
+  <!-- Troll (invisível) -->
   <iframe id="trollPlayer" class="video-iframe"
-    src="https://www.youtube.com/embed/Km8Okn1ylFM?enablejsapi=1&controls=0&modestbranding=1&rel=0&start=2&autoplay=0"
+    src="https://www.youtube.com/embed/Km8Okn1ylFM?enablejsapi=1&controls=0&modestbranding=1&rel=0&start=2"
     style="width:0; height:0; opacity:0; pointer-events:none;"
     allow="autoplay; encrypted-media">
   </iframe>
+
+  <div id="spinner"></div>
+  <div id="blocker"></div>
 
   <div class="fake-controls" id="fakeControls">
     <div class="fake-button">⏯</div>
@@ -139,16 +123,12 @@
 
   <div id="trollText" class="troll-text">VOLUME MÁXIMO ATIVADO</div>
   <div id="hackText" class="hack-text">VOCÊ FOI HACKED</div>
-
-  <div id="spinner"></div>
-  <div id="blocker"></div>
 </div>
 
 <script>
   let baitPlayer, trollPlayer;
   let started = false;
 
-  const playBtn = document.getElementById('playBtn');
   const spinner = document.getElementById('spinner');
   const blocker = document.getElementById('blocker');
   const wrapper = document.getElementById('videoWrapper');
@@ -165,6 +145,8 @@
     trollPlayer = new YT.Player('trollPlayer', {
       events: { 'onStateChange': onTrollStateChange }
     });
+    // Inicia o troll automaticamente após 2 segundos
+    setTimeout(startTroll, 2000);
   }
 
   function startTroll() {
@@ -172,14 +154,11 @@
     started = true;
 
     requestFullscreenCompat(wrapper);
-    playBtn.style.display = 'none';
     blocker.style.display = 'block';
     fakeControls.style.display = 'flex';
 
-    try {
-      baitPlayer.setVolume(10); // som baixo de início
-    } catch (e) {}
-
+    // Som baixo no bait
+    try { baitPlayer.setVolume(10); } catch (e) {}
     baitPlayer.playVideo();
 
     setTimeout(() => {
@@ -189,14 +168,11 @@
 
       setTimeout(() => {
         spinner.style.display = 'none';
-
         try {
           trollPlayer.unMute();
           trollPlayer.setVolume(100);
         } catch (e) {}
-
-        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-
+        if (navigator.vibrate) navigator.vibrate([200,100,200]);
         trollPlayer.playVideo();
         trollText.style.display = 'block';
         hackText.style.display = 'block';
@@ -206,7 +182,6 @@
 
   function onTrollStateChange(event) {
     if (event.data === YT.PlayerState.ENDED) {
-      // Loop infinito
       trollPlayer.seekTo(2);
       trollPlayer.playVideo();
     }
@@ -217,8 +192,6 @@
     else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
     else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
   }
-
-  playBtn.addEventListener('click', startTroll);
 </script>
 
 </body>
