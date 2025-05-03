@@ -3,22 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Troll Fullscreen</title>
+  <title>Você foi trollado!</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: sans-serif; }
+
     #videoWrapper {
       position: relative;
       width: 100vw;
       height: 100vh;
       background: #000;
     }
+
     .video-iframe {
       position: absolute;
       top: 0; left: 0;
       width: 100%; height: 100%;
       border: none;
     }
+
     #playBtn {
       position: absolute;
       top: 50%; left: 50%;
@@ -31,12 +34,9 @@
       display: flex; align-items: center; justify-content: center;
       cursor: pointer;
       z-index: 10;
-      transition: background 0.3s;
       user-select: none;
     }
-    #playBtn:hover {
-      background: rgba(255,255,255,0.1);
-    }
+
     #spinner {
       display: none;
       position: absolute;
@@ -49,9 +49,11 @@
       animation: spin 1s linear infinite;
       z-index: 11;
     }
+
     @keyframes spin {
       to { transform: translate(-50%, -50%) rotate(360deg); }
     }
+
     #blocker {
       display: none;
       position: absolute;
@@ -59,6 +61,57 @@
       width: 100%; height: 100%;
       background: transparent;
       z-index: 9;
+    }
+
+    .fake-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 20px;
+      z-index: 10;
+    }
+
+    .fake-button {
+      width: 50px;
+      height: 50px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: white;
+      user-select: none;
+    }
+
+    .troll-text {
+      display: none;
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 2rem;
+      color: red;
+      z-index: 15;
+      font-weight: bold;
+      animation: blink 0.8s steps(1) infinite;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    .hack-text {
+      display: none;
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      font-size: 1.5rem;
+      color: lime;
+      z-index: 15;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -78,6 +131,15 @@
     allow="autoplay; encrypted-media">
   </iframe>
 
+  <div class="fake-controls" id="fakeControls">
+    <div class="fake-button">⏯</div>
+    <div class="fake-button">🔊</div>
+    <div class="fake-button">⚙️</div>
+  </div>
+
+  <div id="trollText" class="troll-text">VOLUME MÁXIMO ATIVADO</div>
+  <div id="hackText" class="hack-text">VOCÊ FOI HACKED</div>
+
   <div id="spinner"></div>
   <div id="blocker"></div>
 </div>
@@ -90,6 +152,9 @@
   const spinner = document.getElementById('spinner');
   const blocker = document.getElementById('blocker');
   const wrapper = document.getElementById('videoWrapper');
+  const trollText = document.getElementById('trollText');
+  const hackText = document.getElementById('hackText');
+  const fakeControls = document.getElementById('fakeControls');
 
   const tag = document.createElement('script');
   tag.src = "https://www.youtube.com/iframe_api";
@@ -107,18 +172,20 @@
     started = true;
 
     requestFullscreenCompat(wrapper);
-
     playBtn.style.display = 'none';
     blocker.style.display = 'block';
+    fakeControls.style.display = 'flex';
 
-    // Começa o vídeo de isca
-    baitPlayer.unMute();
+    try {
+      baitPlayer.setVolume(10); // som baixo de início
+    } catch (e) {}
+
     baitPlayer.playVideo();
 
-    // Após 5 segundos troca para o vídeo troll
     setTimeout(() => {
       baitPlayer.pauseVideo();
       spinner.style.display = 'block';
+      fakeControls.style.display = 'none';
 
       setTimeout(() => {
         spinner.style.display = 'none';
@@ -126,25 +193,22 @@
         try {
           trollPlayer.unMute();
           trollPlayer.setVolume(100);
-        } catch (e) {
-          console.warn("setVolume não suportado", e);
-        }
+        } catch (e) {}
+
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
 
         trollPlayer.playVideo();
+        trollText.style.display = 'block';
+        hackText.style.display = 'block';
       }, 2000);
     }, 5000);
   }
 
   function onTrollStateChange(event) {
     if (event.data === YT.PlayerState.ENDED) {
-      exitFullscreenCompat();
-
-      blocker.style.display = 'none';
-      playBtn.style.display = 'flex';
-
-      baitPlayer.seekTo(0);
-      trollPlayer.pauseVideo();
-      started = false;
+      // Loop infinito
+      trollPlayer.seekTo(2);
+      trollPlayer.playVideo();
     }
   }
 
@@ -152,12 +216,6 @@
     if (elem.requestFullscreen) elem.requestFullscreen();
     else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
     else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
-  }
-
-  function exitFullscreenCompat() {
-    if (document.exitFullscreen) document.exitFullscreen();
-    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-    else if (document.msExitFullscreen) document.msExitFullscreen();
   }
 
   playBtn.addEventListener('click', startTroll);
